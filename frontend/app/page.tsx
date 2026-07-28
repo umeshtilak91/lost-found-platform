@@ -1,3 +1,7 @@
+import Navbar from "../components/Navbar";
+import Hero from "../components/Hero";
+import LoginButton from "../components/LoginButton";
+
 export default function Home() {
   return (
     <main
@@ -10,12 +14,9 @@ export default function Home() {
         borderRadius: "10px",
       }}
     >
-      <h1>🔍 Lost & Found Platform</h1>
+      <Navbar />
 
-      <p>
-        Welcome to our community-driven platform to report and search for lost
-        and found items.
-      </p>
+      <Hero />
 
       <h2>Features</h2>
 
@@ -27,19 +28,7 @@ export default function Home() {
         <li>➕ Report Item</li>
       </ul>
 
-      <button
-        style={{
-          backgroundColor: "#2563eb",
-          color: "white",
-          padding: "12px 20px",
-          border: "none",
-          borderRadius: "6px",
-          cursor: "pointer",
-          marginTop: "20px",
-        }}
-      >
-        Login with Google (Coming Soon)
-      </button>
+      <LoginButton />
     </main>
   );
 }
