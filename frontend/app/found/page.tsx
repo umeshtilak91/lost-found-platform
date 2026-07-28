@@ -1,11 +1,19 @@
+import { foundItems } from "../../data/foundItems";
+import ItemCard from "../../components/ItemCard";
+
 export default function FoundPage() {
   return (
     <main style={{ padding: "30px" }}>
       <h1>🎒 Found Items</h1>
 
-      <p>
-        This page will display all items reported as found.
-      </p>
+      {foundItems.map((item) => (
+        <ItemCard
+          key={item.id}
+          name={item.name}
+          location={item.location}
+          date={item.date}
+        />
+      ))}
     </main>
   );
 }
