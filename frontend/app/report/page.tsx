@@ -11,6 +11,7 @@ export default function ReportPage() {
     const [date, setDate] = useState("");
     const [description, setDescription] = useState("");
     const [image, setImage] = useState<File | null>(null);
+    const [type, setType] = useState("lost");
     const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -20,6 +21,7 @@ export default function ReportPage() {
   formData.append("location", location);
   formData.append("date", date);
   formData.append("description", description);
+  formData.append("type", type);
 
   if (image) {
     formData.append("image", image);
@@ -39,6 +41,7 @@ export default function ReportPage() {
   setDate("");
   setDescription("");
   setImage(null);
+  setType("lost");
 
   alert("Report submitted successfully!");
 };
@@ -55,6 +58,34 @@ export default function ReportPage() {
       <p>Location: {location}</p>
 
       <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: "15px" }}>
+  <label>What are you reporting?</label>
+  <br />
+
+  <label>
+    <input
+      type="radio"
+      name="type"
+      value="lost"
+      checked={type === "lost"}
+      onChange={(e) => setType(e.target.value)}
+    />
+    Lost Item
+  </label>
+
+  <br />
+
+  <label>
+    <input
+      type="radio"
+      name="type"
+      value="found"
+      checked={type === "found"}
+      onChange={(e) => setType(e.target.value)}
+    />
+    Found Item
+  </label>
+</div>
         <div style={{ marginBottom: "15px" }}>
           <label>Item Name</label>
           <br />
