@@ -1,6 +1,12 @@
+"use client";
 export default function LoginButton() {
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:5000/api/auth/google";
+  };
+
   return (
     <button
+      onClick={handleGoogleLogin}
       style={{
         backgroundColor: "#2563eb",
         color: "white",
@@ -11,7 +17,7 @@ export default function LoginButton() {
         marginTop: "20px",
       }}
     >
-      Login with Google (Coming Soon)
+      🔐 Login with Google
     </button>
   );
 }
