@@ -1,9 +1,15 @@
+"use client";
+
+import { useState } from "react";
+
 type ItemCardProps = {
   name: string;
   location: string;
   date: string;
   description?: string;
   image: string | null;
+  user_name?: string | null;
+  user_profile_image?: string | null;
 };
 
 export default function ItemCard({
@@ -12,7 +18,11 @@ export default function ItemCard({
   date,
   description,
   image,
+  user_name,
+  user_profile_image,
 }: ItemCardProps) {
+  const [profileImageError, setProfileImageError] = useState(false);
+
   const formattedDate = new Date(date).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -58,6 +68,60 @@ export default function ItemCard({
           <p style={{ margin: "12px 0 0 0", color: "#bbb" }}>
             📝 {description}
           </p>
+        )}
+
+        {/* Reporter */}
+        {user_name && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginTop: "15px",
+              paddingTop: "12px",
+              borderTop: "1px solid #333",
+            }}
+          >
+            {/* Profile picture */}
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                minWidth: "32px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                backgroundColor: "#2563eb",
+                color: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "bold",
+              }}
+            >
+              {user_profile_image && !profileImageError ? (
+                <img
+                  src={user_profile_image}
+                  alt=""
+                  width={32}
+                  height={32}
+                  onError={() => setProfileImageError(true)}
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                user_name.charAt(0).toUpperCase()
+              )}
+            </div>
+
+            {/* Reporter name */}
+            <span style={{ whiteSpace: "nowrap" }}>
+              👤 Reported by <strong>{user_name}</strong>
+            </span>
+          </div>
         )}
       </div>
     </div>

@@ -19,13 +19,43 @@ passport.use(
       try {
         console.log("Google profile:", profile);
 
-        return done(null, profile);
+        const googleId = profile.id;
+        const name = profile.displayName;
+        const email = profile.emails?.[0]?.value;
+        const profileImage = profile.photos?.[0]?.value || null;
+
+        // Check if user already exists
+        const existingUser = await pool.query(
+          "SELECT * FROM users WHERE google_id = $1",
+          [googleId]
+        );
+
+        if (existingUser.rows.length > 0) {
+          console.log("✅ Existing user found");
+
+          return done(null, existingUser.rows[0]);
+        }
+
+        // Create new user
+        const result = await pool.query(
+          `INSERT INTO users
+            (google_id, name, email, profile_image)
+           VALUES ($1, $2, $3, $4)
+           RETURNING *`,
+          [googleId, name, email, profileImage]
+        );
+
+        console.log("✅ New user created");
+
+        return done(null, result.rows[0]);
       } catch (error) {
+        console.error("User authentication/database error:", error);
         return done(error, null);
       }
     }
   )
 );
+
 passport.serializeUser((user, done) => {
   done(null, user);
 });
@@ -36,7 +66,17 @@ passport.deserializeUser((user, done) => {
 
 const app = express();
 
-app.use(cors());
+
+
+
+
+
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
 
 app.use(
   session({
@@ -46,11 +86,22 @@ app.use(
   })
 );
 
+app.use(express.json());
+
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(express.json());
 
+
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+
+  return res.status(401).json({
+    message: "Please login with Google first",
+  });
+}
 
 const path = require("path");
 
@@ -67,9 +118,18 @@ app.get("/", (req, res) => {
 
 app.get("/api/lost-items", async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM items ORDER BY created_at DESC"
-    );
+        const result = await pool.query(`
+      SELECT
+        items.*,
+        users.name AS user_name,
+        users.email AS user_email,
+        users.profile_image AS user_profile_image
+      FROM items
+      LEFT JOIN users
+        ON items.user_id = users.id
+      WHERE items.type = 'found'
+      ORDER BY items.created_at DESC
+    `);
 
     res.json(result.rows);
   } catch (error) {
@@ -82,9 +142,17 @@ app.get("/api/lost-items", async (req, res) => {
 });
 app.get("/api/found-items", async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM items WHERE type = 'found' ORDER BY created_at DESC"
-    );
+        const result = await pool.query(`
+        SELECT
+        items.*,
+        users.name AS user_name,
+        users.email AS user_email,
+        users.profile_image AS user_profile_image
+      FROM items
+      LEFT JOIN users
+        ON items.user_id = users.id
+      ORDER BY items.created_at DESC
+    `);
 
     res.json(result.rows);
   } catch (error) {
@@ -96,37 +164,62 @@ app.get("/api/found-items", async (req, res) => {
   }
 });
 
-app.post("/api/report", upload.single("image"), async (req, res) => {
-  try {
-    const { name, location, date, description, type } = req.body;
-    const image = req.file ? req.file.filename : null;
-    console.log("================================");
-console.log("BODY:", req.body);
-console.log("FILE:", req.file);
-console.log("IMAGE:", image);
-console.log("================================");
-    console.log("Request Body:", req.body);
-    console.log("Uploaded File:", req.file);
+app.post(
+  "/api/report",
+  ensureAuthenticated,
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const { name, location, date, description, type } = req.body;
 
-const result = await pool.query(
-  `INSERT INTO items (name, location, date, description, image, type)
-   VALUES ($1, $2, $3, $4, $5, $6)
-   RETURNING *`,
-  [name, location, date, description, image, type]
+      const image = req.file ? req.file.filename : null;
+
+      const userId = req.user.id;
+
+      console.log("================================");
+      console.log("USER:", req.user);
+      console.log("USER ID:", userId);
+      console.log("BODY:", req.body);
+      console.log("FILE:", req.file);
+      console.log("IMAGE:", image);
+      console.log("================================");
+
+      const result = await pool.query(
+        `INSERT INTO items (
+          name,
+          location,
+          date,
+          description,
+          image,
+          type,
+          user_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *`,
+        [
+          name,
+          location,
+          date,
+          description,
+          image,
+          type,
+          userId,
+        ]
+      );
+
+      res.status(201).json({
+        message: "Lost/Found item reported successfully!",
+        item: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Database Error:", error);
+
+      res.status(500).json({
+        message: "Database Error",
+      });
+    }
+  }
 );
-
-    res.status(201).json({
-      message: "Lost/Found item reported successfully!",
-      item: result.rows[0],
-    });
-  } catch (error) {
-    console.error("Database Error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
- });
-}
-});
 app.get(
   "/api/auth/google",
   passport.authenticate("google", {

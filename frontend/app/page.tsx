@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
-import LoginButton from "../components/LoginButton";
+
 
 export default function Home() {
   return (
@@ -28,7 +28,7 @@ export default function Home() {
         <li>➕ Report Item</li>
       </ul>
 
-      <LoginButton />
+     
     </main>
   );
 }

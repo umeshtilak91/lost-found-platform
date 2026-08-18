@@ -1,6 +1,35 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  profile_image: string | null;
+};
 
 export default function Navbar() {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/auth/me", {
+      credentials: "include",
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Auth response:", data);
+
+        if (data.loggedIn) {
+          setUser(data.user);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to check authentication:", error);
+      });
+  }, []);
+
   return (
     <nav
       style={{
@@ -27,6 +56,7 @@ export default function Navbar() {
             display: "flex",
             gap: "10px",
             flexWrap: "wrap",
+            alignItems: "center",
           }}
         >
           <Link href="/" style={linkStyle}>
@@ -44,6 +74,61 @@ export default function Navbar() {
           <Link href="/report" style={linkStyle}>
             ➕ Report Item
           </Link>
+
+          {user ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginLeft: "10px",
+              }}
+            >
+              <div
+                  style={{
+                    width: "35px",
+                    height: "35px",
+                    borderRadius: "50%",
+                    backgroundColor: "white",
+                    color: "#2563eb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                
+              
+
+              <span style={{ fontWeight: "bold" }}>
+                👤 {user.name}
+              </span>
+
+              <button
+                onClick={() => {
+                  window.location.href =
+                    "http://localhost:5000/api/auth/logout";
+                }}
+                style={{
+                  padding: "8px 12px",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <a
+              href="http://localhost:5000/api/auth/google"
+              style={linkStyle}
+            >
+              🔐 Login with Google
+            </a>
+          )}
         </div>
       </div>
     </nav>

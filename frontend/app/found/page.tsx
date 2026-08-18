@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import BackButton from "../../components/BackButton";
 import ItemCard from "../../components/ItemCard";
 import type { Item } from "../../types/item";
 
@@ -40,16 +41,11 @@ export default function FoundPage() {
 
   return (
     <main style={{ padding: "30px" }}>
+      <BackButton />
+
       <h1>🎒 Found Items</h1>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          marginTop: "15px",
-        }}
-      >
+      <div>
         <input
           type="text"
           placeholder="Search by item name or location..."
@@ -59,6 +55,7 @@ export default function FoundPage() {
             width: "100%",
             maxWidth: "500px",
             padding: "12px",
+            marginTop: "15px",
             borderRadius: "8px",
             border: "1px solid #555",
             fontSize: "16px",
@@ -70,6 +67,7 @@ export default function FoundPage() {
         <button
           onClick={() => setSearch("")}
           style={{
+            marginLeft: "10px",
             padding: "12px 18px",
             borderRadius: "8px",
             border: "1px solid #555",
@@ -97,6 +95,8 @@ export default function FoundPage() {
               date={item.date}
               description={item.description}
               image={item.image}
+              user_name={item.user_name}
+              user_profile_image={item.user_profile_image}
             />
           ))
         ) : (
@@ -109,7 +109,7 @@ export default function FoundPage() {
               fontSize: "18px",
             }}
           >
-            🔍 No found items found.
+            🎒 No found items found.
           </p>
         )}
       </div>
