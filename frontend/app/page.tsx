@@ -1,7 +1,42 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 
+type Stats = {
+  total: number;
+  lost: number;
+  found: number;
+};
+
 export default function Home() {
+  const [stats, setStats] = useState<Stats>({
+    total: 0,
+    lost: 0,
+    found: 0,
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const response = await fetch("http://localhost:5000/api/stats");
+
+        if (!response.ok) {
+          throw new Error(`HTTP Error: ${response.status}`);
+        }
+
+        const data: Stats = await response.json();
+
+        setStats(data);
+      } catch (error) {
+        console.error("Failed to fetch statistics:", error);
+      }
+    }
+
+    fetchStats();
+  }, []);
+
   return (
     <main
       style={{
@@ -9,7 +44,6 @@ export default function Home() {
         padding: "40px 20px 60px",
         fontFamily: "Arial, sans-serif",
         color: "white",
-
         background:
           "radial-gradient(circle at 10% 15%, rgba(37, 99, 235, 0.35), transparent 30%), radial-gradient(circle at 90% 85%, rgba(124, 58, 237, 0.25), transparent 30%), #020617",
       }}
@@ -24,10 +58,38 @@ export default function Home() {
 
         <Hero />
 
+        {/* Statistics */}
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "15px",
+            marginTop: "30px",
+            marginBottom: "30px",
+          }}
+        >
+          <StatCard
+            icon="📊"
+            value={stats.total}
+            label="Total Reports"
+          />
+
+          <StatCard
+            icon="🔍"
+            value={stats.lost}
+            label="Lost Items"
+          />
+
+          <StatCard
+            icon="🎒"
+            value={stats.found}
+            label="Found Items"
+          />
+        </section>
+
         {/* Features */}
         <section
           style={{
-            marginTop: "30px",
             padding: "25px",
             borderRadius: "16px",
             background: "rgba(15, 23, 42, 0.75)",
@@ -88,6 +150,56 @@ export default function Home() {
   );
 }
 
+function StatCard({
+  icon,
+  value,
+  label,
+}: {
+  icon: string;
+  value: number;
+  label: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "16px 20px",
+        borderRadius: "14px",
+        textAlign: "center",
+        background: "rgba(15, 23, 42, 0.8)",
+        border: "1px solid rgba(255,255,255,0.1)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "28px",
+          marginBottom: "8px",
+        }}
+      >
+        {icon}
+      </div>
+
+      <div
+        style={{
+          fontSize: "28px",
+          fontWeight: "700",
+          marginBottom: "5px",
+        }}
+      >
+        {value}
+      </div>
+
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
 function FeatureCard({
   icon,
   title,
@@ -104,7 +216,6 @@ function FeatureCard({
         borderRadius: "12px",
         background: "rgba(30, 41, 59, 0.8)",
         border: "1px solid rgba(255,255,255,0.08)",
-        transition: "transform 0.2s ease",
       }}
     >
       <div

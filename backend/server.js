@@ -164,6 +164,30 @@ app.get("/api/found-items", async (req, res) => {
   }
 });
 
+app.get("/api/stats", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE type = 'lost') AS lost,
+        COUNT(*) FILTER (WHERE type = 'found') AS found
+      FROM items
+    `);
+
+    res.json({
+      total: Number(result.rows[0].total),
+      lost: Number(result.rows[0].lost),
+      found: Number(result.rows[0].found),
+    });
+  } catch (error) {
+    console.error("Stats Error:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch statistics",
+    });
+  }
+});
+
 app.post(
   "/api/report",
   ensureAuthenticated,
