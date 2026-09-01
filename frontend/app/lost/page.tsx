@@ -90,6 +90,7 @@ export default function LostPage() {
           filteredItems.map((item) => (
             <ItemCard
               key={item.id}
+              id={item.id}
               name={item.name}
               location={item.location}
               date={item.date}

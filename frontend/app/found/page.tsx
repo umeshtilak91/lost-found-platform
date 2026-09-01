@@ -90,6 +90,7 @@ export default function FoundPage() {
           filteredItems.map((item) => (
             <ItemCard
               key={item.id}
+              id={item.id}
               name={item.name}
               location={item.location}
               date={item.date}

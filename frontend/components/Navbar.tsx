@@ -32,13 +32,13 @@ export default function Navbar() {
 
   return (
     <nav
-  style={{
-    backgroundColor: "transparent",
-    color: "white",
-    padding: "15px 0",
-    marginBottom: "20px",
-  }}
->
+      style={{
+        backgroundColor: "transparent",
+        color: "white",
+        padding: "15px 0",
+        marginBottom: "20px",
+      }}
+    >
       <div
         style={{
           display: "flex",
@@ -83,7 +83,19 @@ export default function Navbar() {
                 marginLeft: "10px",
               }}
             >
-              <div
+              <Link
+                href="/profile"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  color: "white",
+                  textDecoration: "none",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                <div
                   style={{
                     width: "35px",
                     height: "35px",
@@ -98,12 +110,9 @@ export default function Navbar() {
                 >
                   {user.name.charAt(0).toUpperCase()}
                 </div>
-                
-              
 
-              <span style={{ fontWeight: "bold" }}>
-                👤 {user.name}
-              </span>
+                <span>👤 {user.name}</span>
+              </Link>
 
               <button
                 onClick={() => {
