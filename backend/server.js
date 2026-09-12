@@ -495,6 +495,43 @@ app.put(
     }
   }
 );
+      // ======================================================
+// GET MY POSTED ITEMS
+// ======================================================
+
+app.get(
+  "/api/auth/my-items",
+  ensureAuthenticated,
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          name,
+          location,
+          date,
+          description,
+          image,
+          type,
+          created_at
+        FROM items
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        `,
+        [req.user.id]
+      );
+
+      res.json(result.rows);
+    } catch (error) {
+      console.error("My items error:", error);
+
+      res.status(500).json({
+        message: "Database Error",
+      });
+    }
+  }
+);
 
 // ======================================================
 // LOGOUT

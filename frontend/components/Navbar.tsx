@@ -95,29 +95,51 @@ export default function Navbar() {
                   cursor: "pointer",
                 }}
               >
-                <div
-                  style={{
-                    width: "35px",
-                    height: "35px",
-                    borderRadius: "50%",
-                    backgroundColor: "white",
-                    color: "#2563eb",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
+                {user.profile_image ? (
+                  <img
+                    src={user.profile_image}
+                    alt={user.name}
+                    referrerPolicy="no-referrer"
+                    style={{
+                      width: "35px",
+                      height: "35px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "35px",
+                      height: "35px",
+                      borderRadius: "50%",
+                      backgroundColor: "white",
+                      color: "#2563eb",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
 
                 <span>👤 {user.name}</span>
               </Link>
 
               <button
-                onClick={() => {
-                  window.location.href =
-                    "http://localhost:5000/api/auth/logout";
+                onClick={async () => {
+                  try {
+                    await fetch("http://localhost:5000/api/auth/logout", {
+                      credentials: "include",
+                    });
+
+                    window.location.href = "/";
+                  } catch (error) {
+                    console.error("Logout failed:", error);
+                  }
                 }}
                 style={{
                   padding: "8px 12px",
