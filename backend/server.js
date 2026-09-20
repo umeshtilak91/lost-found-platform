@@ -9,6 +9,10 @@ const upload = require("./upload");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const ensureAuthenticated = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
+const itemsRoutes = require("./routes/items");
+const path = require("path");
+
+
 
 
 // ======================================================
@@ -112,6 +116,12 @@ passport.deserializeUser(async (id, done) => {
 const app = express();
 
 
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"))
+);
+
+
 // ======================================================
 // CORS
 // ======================================================
@@ -152,10 +162,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use("/api/auth", authRoutes);
+app.use("/api", itemsRoutes);
 
-// ======================================================
-// AUTHENTICATION MIDDLEWARE
-// ======================================================
+
 
 
 
@@ -164,12 +173,6 @@ app.use("/api/auth", authRoutes);
 // FILE UPLOADS
 // ======================================================
 
-const path = require("path");
-
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "uploads"))
-);
 
 
 // ======================================================
@@ -188,122 +191,9 @@ app.get("/", (req, res) => {
 });
 
 
-// ======================================================
-// GET ALL LOST ITEMS
-// ======================================================
-
-app.get("/api/lost-items", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT
-        items.*,
-        users.name AS user_name,
-        users.email AS user_email,
-        users.profile_image AS user_profile_image,
-        CASE
-          WHEN users.allow_phone_contact = TRUE
-          THEN users.mobile_number
-          ELSE NULL
-        END AS user_mobile_number,
-        COALESCE(users.allow_phone_contact, FALSE) AS allow_phone_contact
-      FROM items
-      LEFT JOIN users
-        ON items.user_id = users.id
-      WHERE items.type = 'lost'
-      ORDER BY items.created_at DESC
-    `);
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Lost items error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
-  }
-});
 
 
-// ======================================================
-// GET ALL FOUND ITEMS
-// ======================================================
 
-app.get("/api/found-items", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT
-        items.*,
-        users.name AS user_name,
-        users.email AS user_email,
-        users.profile_image AS user_profile_image,
-        CASE
-          WHEN users.allow_phone_contact = TRUE
-          THEN users.mobile_number
-          ELSE NULL
-        END AS user_mobile_number,
-        COALESCE(users.allow_phone_contact, FALSE) AS allow_phone_contact
-      FROM items
-      LEFT JOIN users
-        ON items.user_id = users.id
-      WHERE items.type = 'found'
-      ORDER BY items.created_at DESC
-    `);
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Found items error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
-  }
-});
-
-
-// ======================================================
-// GET SINGLE ITEM
-// ======================================================
-
-app.get("/api/items/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await pool.query(
-      `
-      SELECT
-        items.*,
-        users.name AS user_name,
-        users.email AS user_email,
-        users.profile_image AS user_profile_image,
-        CASE
-          WHEN users.allow_phone_contact = TRUE
-          THEN users.mobile_number
-          ELSE NULL
-        END AS user_mobile_number,
-        COALESCE(users.allow_phone_contact, FALSE) AS allow_phone_contact
-      FROM items
-      LEFT JOIN users
-        ON items.user_id = users.id
-      WHERE items.id = $1
-      `,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Item not found",
-      });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error("Single item error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
-  }
-});
 
 // ======================================================
 // REPORT LOST / FOUND ITEM
@@ -378,85 +268,23 @@ app.post(
 );
 
 
-// ======================================================
-// GOOGLE LOGIN
-// ======================================================
 
 
 
 
-// ======================================================
-// GOOGLE CALLBACK
-// ======================================================
 
 
 
 
-// ======================================================
-// CHECK CURRENT USER
-// ======================================================
-
-
-// ======================================================
-// UPDATE PHONE CONTACT SETTINGS
-// ======================================================
-
-
-      // ======================================================
-// GET MY POSTED ITEMS
-// ======================================================
 
 
 
-// ======================================================
-// LOGOUT
-// ======================================================
 
 
-// ======================================================
-// HOMEPAGE STATISTICS
-// ======================================================
-
-app.get("/api/stats", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE type = 'lost') AS lost,
-        COUNT(*) FILTER (WHERE type = 'found') AS found
-      FROM items
-    `);
-
-    res.json({
-      total: Number(result.rows[0].total),
-      lost: Number(result.rows[0].lost),
-      found: Number(result.rows[0].found),
-    });
-  } catch (error) {
-    console.error("Stats error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
-  }
-});
 
 
-// ======================================================
-// DATABASE CONNECTION TEST
-// ======================================================
 
-pool.query("SELECT NOW()", (err, result) => {
-  if (err) {
-    console.error(
-      "Database connection failed:",
-      err
-    );
-  } else {
-    console.log("✅ Database Connected");
-    console.log(result.rows[0]);
-  }
-});
+
 
 
 // ======================================================
