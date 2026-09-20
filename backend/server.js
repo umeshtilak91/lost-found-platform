@@ -5,11 +5,10 @@ const passport = require("passport");
 require("dotenv").config();
 
 const pool = require("./db");
-const upload = require("./upload");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const ensureAuthenticated = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const itemsRoutes = require("./routes/items");
+const reportRoutes = require("./routes/report");
 const path = require("path");
 
 
@@ -163,15 +162,11 @@ app.use(passport.session());
 
 app.use("/api/auth", authRoutes);
 app.use("/api", itemsRoutes);
+app.use("/api", reportRoutes);
 
 
 
 
-
-
-// ======================================================
-// FILE UPLOADS
-// ======================================================
 
 
 
@@ -190,82 +185,6 @@ app.get("/", (req, res) => {
   res.send("🚀 Lost & Found Backend is Running!");
 });
 
-
-
-
-
-
-// ======================================================
-// REPORT LOST / FOUND ITEM
-// ======================================================
-
-app.post(
-  "/api/report",
-  ensureAuthenticated,
-  upload.single("image"),
-
-  async (req, res) => {
-    try {
-      const {
-        name,
-        location,
-        date,
-        description,
-        type,
-      } = req.body;
-
-      const image = req.file
-        ? req.file.filename
-        : null;
-
-      const userId = req.user.id;
-
-      console.log("================================");
-      console.log("USER:", req.user);
-      console.log("USER ID:", userId);
-      console.log("BODY:", req.body);
-      console.log("FILE:", req.file);
-      console.log("IMAGE:", image);
-      console.log("================================");
-
-      const result = await pool.query(
-        `INSERT INTO items (
-          name,
-          location,
-          date,
-          description,
-          image,
-          type,
-          user_id
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *`,
-
-        [
-          name,
-          location,
-          date,
-          description,
-          image,
-          type,
-          userId,
-        ]
-      );
-
-      res.status(201).json({
-        message:
-          "Lost/Found item reported successfully!",
-        item: result.rows[0],
-      });
-    } catch (error) {
-      console.error("Database Error:", error);
-
-      res.status(500).json({
-        message: "Database Error",
-      });
-    }
-  }
-);
 
 
 
