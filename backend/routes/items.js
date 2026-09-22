@@ -88,6 +88,12 @@ router.get("/items/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({
+        message: "Item ID must be a valid number",
+      });
+    }
+
     const result = await pool.query(
       `
       SELECT
