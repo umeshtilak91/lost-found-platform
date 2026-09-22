@@ -16,7 +16,7 @@ router.post(
 
   async (req, res) => {
     try {
-      const {
+      let {
         name,
         location,
         date,
@@ -24,11 +24,67 @@ router.post(
         type,
       } = req.body;
 
+      // ======================================================
+      // VALIDATION
+      // ======================================================
+
+      name = name?.trim();
+      location = location?.trim();
+      type = type?.trim().toLowerCase();
+
+      if (!name || !location || !date || !type) {
+        return res.status(400).json({
+          message: "Name, location, date and type are required",
+        });
+      }
+
+      if (!["lost", "found"].includes(type)) {
+        return res.status(400).json({
+          message: "Type must be either lost or found",
+        });
+      }
+
+      // Validate date format: YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({
+          message: "Date must be in YYYY-MM-DD format",
+        });
+      }
+
+      const parsedDate = new Date(`${date}T00:00:00Z`);
+
+      // Check whether the date actually exists
+      if (
+        Number.isNaN(parsedDate.getTime()) ||
+        parsedDate.toISOString().slice(0, 10) !== date
+      ) {
+        return res.status(400).json({
+          message: "Please provide a valid date",
+        });
+      }
+
+      // Prevent future dates
+      const today = new Date().toISOString().slice(0, 10);
+
+      if (date > today) {
+        return res.status(400).json({
+          message: "Date cannot be in the future",
+        });
+      }
+
+      // ======================================================
+      // IMAGE
+      // ======================================================
+
       const image = req.file
         ? req.file.filename
         : null;
 
       const userId = req.user.id;
+
+      // ======================================================
+      // DATABASE INSERT
+      // ======================================================
 
       const result = await pool.query(
         `INSERT INTO items (
@@ -47,7 +103,7 @@ router.post(
           name,
           location,
           date,
-          description,
+          description?.trim() || null,
           image,
           type,
           userId,
