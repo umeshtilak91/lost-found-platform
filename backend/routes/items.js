@@ -10,7 +10,19 @@ const router = express.Router();
 
 router.get("/lost-items", async (req, res) => {
   try {
-    const result = await pool.query(`
+    const page = Number.parseInt(req.query.page, 10) || 1;
+    const limit = Number.parseInt(req.query.limit, 10) || 10;
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({
+        message: "Page must be >= 1 and limit must be between 1 and 100",
+      });
+    }
+
+    const offset = (page - 1) * limit;
+
+    const result = await pool.query(
+      `
       SELECT
         items.*,
         users.name AS user_name,
@@ -27,7 +39,10 @@ router.get("/lost-items", async (req, res) => {
         ON items.user_id = users.id
       WHERE items.type = 'lost'
       ORDER BY items.created_at DESC
-    `);
+      LIMIT $1 OFFSET $2
+     `,
+      [limit, offset]
+    );
 
     res.json(result.rows);
   } catch (error) {
@@ -40,7 +55,7 @@ router.get("/lost-items", async (req, res) => {
 });
 
 
-module.exports = router;
+
 
 
 // ======================================================
@@ -49,7 +64,19 @@ module.exports = router;
 
 router.get("/found-items", async (req, res) => {
   try {
-    const result = await pool.query(`
+    const page = Number.parseInt(req.query.page, 10) || 1;
+    const limit = Number.parseInt(req.query.limit, 10) || 10;
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({
+        message: "Page must be >= 1 and limit must be between 1 and 100",
+      });
+    }
+
+    const offset = (page - 1) * limit;
+
+    const result = await pool.query(
+      `
       SELECT
         items.*,
         users.name AS user_name,
@@ -66,7 +93,10 @@ router.get("/found-items", async (req, res) => {
         ON items.user_id = users.id
       WHERE items.type = 'found'
       ORDER BY items.created_at DESC
-    `);
+  LIMIT $1 OFFSET $2
+      `,
+      [limit, offset]
+    );
 
     res.json(result.rows);
   } catch (error) {
@@ -77,6 +107,7 @@ router.get("/found-items", async (req, res) => {
     });
   }
 });
+
 
 
 
