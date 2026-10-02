@@ -5,7 +5,7 @@ const passport = require("passport");
 require("dotenv").config();
 
 const pool = require("./db");
-const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const errorHandler = require("./middleware/errorHandler");
 const authRoutes = require("./routes/auth");
 const itemsRoutes = require("./routes/items");
 const reportRoutes = require("./routes/report");
@@ -73,6 +73,7 @@ app.use(passport.session());
 app.use("/api/auth", authRoutes);
 app.use("/api", itemsRoutes);
 app.use("/api", reportRoutes);
+app.use(errorHandler);
 
 
 

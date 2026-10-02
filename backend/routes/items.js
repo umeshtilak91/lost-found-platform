@@ -8,7 +8,7 @@ const router = express.Router();
 // GET ALL LOST ITEMS
 // ======================================================
 
-router.get("/lost-items", async (req, res) => {
+router.get("/lost-items", async (req, res, next) => {
   try {
     const page = Number.parseInt(req.query.page, 10) || 1;
     const limit = Number.parseInt(req.query.limit, 10) || 10;
@@ -46,12 +46,8 @@ router.get("/lost-items", async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error("Lost items error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
-  }
+  next(error);
+}
 });
 
 
@@ -62,7 +58,7 @@ router.get("/lost-items", async (req, res) => {
 // GET ALL FOUND ITEMS
 // ======================================================
 
-router.get("/found-items", async (req, res) => {
+router.get("/found-items", async (req, res, next) => {
   try {
     const page = Number.parseInt(req.query.page, 10) || 1;
     const limit = Number.parseInt(req.query.limit, 10) || 10;
@@ -100,12 +96,8 @@ router.get("/found-items", async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error("Found items error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
-  }
+  next(error);
+}
 });
 
 
@@ -115,7 +107,7 @@ router.get("/found-items", async (req, res) => {
 // GET SINGLE ITEM
 // ======================================================
 
-router.get("/items/:id", async (req, res) => {
+router.get("/items/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -154,12 +146,8 @@ router.get("/items/:id", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Single item error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
-  }
+  next(error);
+}
 });
 
 
@@ -167,7 +155,7 @@ router.get("/items/:id", async (req, res) => {
 // GET ITEM STATISTICS
 // ======================================================
 
-router.get("/stats", async (req, res) => {
+router.get("/stats", async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -183,11 +171,7 @@ router.get("/stats", async (req, res) => {
       found: Number(result.rows[0].found),
     });
   } catch (error) {
-    console.error("Stats error:", error);
-
-    res.status(500).json({
-      message: "Database Error",
-    });
+    next(error);
   }
 });
 
