@@ -10,7 +10,10 @@ const router = express.Router();
 
 router.get("/lost-items", async (req, res, next) => {
   try {
-    const page = Number.parseInt(req.query.page, 10) || 1;
+    const page =
+      req.query.page === undefined
+        ? 1
+        : Number.parseInt(req.query.page, 10);
     const limit = Number.parseInt(req.query.limit, 10) || 10;
 
     if (page < 1 || limit < 1 || limit > 100) {
@@ -46,8 +49,8 @@ router.get("/lost-items", async (req, res, next) => {
 
     res.json(result.rows);
   } catch (error) {
-  next(error);
-}
+    next(error);
+  }
 });
 
 
@@ -60,7 +63,10 @@ router.get("/lost-items", async (req, res, next) => {
 
 router.get("/found-items", async (req, res, next) => {
   try {
-    const page = Number.parseInt(req.query.page, 10) || 1;
+    const page =
+      req.query.page === undefined
+        ? 1
+        : Number.parseInt(req.query.page, 10);
     const limit = Number.parseInt(req.query.limit, 10) || 10;
 
     if (page < 1 || limit < 1 || limit > 100) {
@@ -96,8 +102,8 @@ router.get("/found-items", async (req, res, next) => {
 
     res.json(result.rows);
   } catch (error) {
-  next(error);
-}
+    next(error);
+  }
 });
 
 
@@ -146,8 +152,8 @@ router.get("/items/:id", async (req, res, next) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-  next(error);
-}
+    next(error);
+  }
 });
 
 
