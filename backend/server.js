@@ -121,8 +121,4 @@ app.get("/", (req, res) => {
 // START SERVER
 // ======================================================
 
-app.listen(PORT, () => {
-  console.log(
-    `Server is running on http://localhost:${PORT}`
-  );
-});
+module.exports = app;
