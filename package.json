@@ -1,0 +1,27 @@
+{
+  "name": "lost-and-found-platform",
+  "private": true,
+  "description": "Developer commands for the Lost & Found platform. Each app keeps its own package.json and lockfile (backend/, frontend/).",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "npm ci --prefix backend && npm ci --prefix frontend",
+    "dev": "docker compose up -d --build",
+    "dev:logs": "docker compose logs -f backend frontend",
+    "dev:down": "docker compose down",
+    "migrate": "docker compose run --rm migrate",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "typecheck": "npm run typecheck --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "check:bundle": "npm run check:bundle --prefix frontend",
+    "test:db": "docker start lf-testdb 2>/dev/null || docker run -d --name lf-testdb -e POSTGRES_PASSWORD=test -p 5544:5432 postgres:16-alpine",
+    "test": "npm test --prefix backend",
+    "e2e:up": "docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait",
+    "e2e:down": "docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml down -v",
+    "test:e2e": "npm run test:e2e --prefix frontend",
+    "test:e2e:razorpay": "npm run test:e2e:razorpay --prefix frontend",
+    "secrets:scan": "gitleaks git --redact --no-banner . && gitleaks git --pre-commit --redact --no-banner .",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run check:bundle"
+  }
+}

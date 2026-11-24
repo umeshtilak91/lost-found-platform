@@ -1,0 +1,82 @@
+name: Sandbox provider checks (manual)
+
+# Optional checks against real provider sandboxes. Never runs automatically,
+# so routine CI stays independent of paid services.
+# Configure repository secrets first (Settings → Secrets and variables → Actions):
+#   RAZORPAY_TEST_KEY_ID, RAZORPAY_TEST_KEY_SECRET, RAZORPAY_TEST_WEBHOOK_SECRET  (Test Mode only)
+#   GOOGLE_MAPS_API_KEY_TEST  (a key restricted to Places API (New) + Geocoding API)
+
+on:
+  workflow_dispatch:
+    inputs:
+      check:
+        description: Which provider to check
+        type: choice
+        options: [google-places, razorpay-test-mode]
+        default: google-places
+
+permissions:
+  contents: read
+
+jobs:
+  google-places:
+    if: inputs.check == 'google-places'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Live Places autocomplete, details and reverse geocoding (key never printed)
+        run: node scripts/verify-google-places.js
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY_TEST }}
+
+  razorpay-test-mode:
+    if: inputs.check == 'razorpay-test-mode'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Refuse anything but Razorpay Test Mode keys
+        run: |
+          case "${RZP_KEY_ID}" in rzp_test_*) ;; *) echo "RAZORPAY_TEST_KEY_ID must be a rzp_test_ key"; exit 1;; esac
+        env:
+          RZP_KEY_ID: ${{ secrets.RAZORPAY_TEST_KEY_ID }}
+      - name: Test-only environment file
+        run: |
+          umask 077
+          {
+            echo "SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "DB_PASSWORD=$(openssl rand -hex 16)"
+            echo "PAYMENT_PROVIDER=razorpay"
+            echo "E2E_PAYMENT_PROVIDER=razorpay"
+            echo "RAZORPAY_KEY_ID=${RZP_KEY_ID}"
+            echo "RAZORPAY_KEY_SECRET=${RZP_KEY_SECRET}"
+            echo "RAZORPAY_WEBHOOK_SECRET=${RZP_WEBHOOK_SECRET}"
+          } > .env
+        env:
+          RZP_KEY_ID: ${{ secrets.RAZORPAY_TEST_KEY_ID }}
+          RZP_KEY_SECRET: ${{ secrets.RAZORPAY_TEST_KEY_SECRET }}
+          RZP_WEBHOOK_SECRET: ${{ secrets.RAZORPAY_TEST_WEBHOOK_SECRET }}
+      - name: Start isolated stack
+        run: docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Real Razorpay Test Mode journey (₹100 fee only)
+        run: npx playwright test -c playwright.razorpay.config.ts
+        working-directory: frontend
+      - if: always()
+        run: |
+          docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml down -v
+          rm -f .env

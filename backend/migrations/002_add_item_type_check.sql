@@ -1,4 +1,3 @@
-BEGIN;
 
 -- Add item type validation only if it does not exist
 DO $$
@@ -14,4 +13,3 @@ BEGIN
     END IF;
 END $$;
 
-COMMIT;

@@ -141,3 +141,27 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+!.env.example
+
+# --- Project-specific -------------------------------------------------------
+# Local secrets and keys (only .env.example is tracked)
+*.pem
+*.key
+*.p8
+*.p12
+# Local data: uploaded images, databases, dumps
+backend/storage/
+backend/uploads/
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+# Throwaway scripts and test artifacts (may contain personal data)
+*.tmp.mjs
+*.tmp.js
+playwright-report/
+test-results/
+blob-report/
+screenshots/
+.DS_Store

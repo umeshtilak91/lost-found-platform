@@ -1,4 +1,3 @@
-BEGIN;
 
 -- Remove the existing foreign key constraint
 ALTER TABLE items
@@ -12,4 +11,3 @@ REFERENCES users(id)
 ON DELETE SET NULL
 ON UPDATE CASCADE;
 
-COMMIT;

@@ -1,0 +1,11 @@
+appUrl: https://lostfound.example.com
+ingress:
+  host: lostfound.example.com
+api:
+  env:
+    S3_BUCKET: lostfound-production-media
+monitoring:
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: true

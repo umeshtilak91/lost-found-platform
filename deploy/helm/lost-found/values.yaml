@@ -1,0 +1,86 @@
+# Defaults are safe for a non-production namespace. Override per environment
+# with values-staging.yaml / values-production.yaml.
+
+appUrl: https://lostfound.example.com   # public origin (also OAuth callback base)
+
+image:
+  registry: 123456789012.dkr.ecr.ap-south-1.amazonaws.com   # placeholder
+  pullPolicy: IfNotPresent
+
+api:
+  # Fixed service name: the web image proxies /api to http://lost-found-api:5000
+  # as a fallback (the ingress normally routes /api straight to the API).
+  serviceName: lost-found-api
+  image:
+    repository: lost-found-api
+    tag: ""            # required: immutable git-SHA tag pushed by CI
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits: { memory: 512Mi }
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 8, targetCPUUtilizationPercentage: 70 }
+  env:
+    LOG_LEVEL: info
+    STORAGE_DRIVER: s3
+    S3_REGION: ap-south-1
+    S3_BUCKET: ""                     # required for s3 storage
+    S3_PREFIX: media
+    CLOUDFRONT_DISTRIBUTION_ID: ""     # optional: purge removed images
+    DB_SSL: "true"
+    TRUST_PROXY: "1"
+    NOTIFICATION_EMAILS: "true"
+    MAIL_FROM: "Lost & Found <no-reply@lostfound.example.com>"
+    PAYMENT_PROVIDER: razorpay   # RAZORPAY_KEY_ID/_KEY_SECRET/_WEBHOOK_SECRET come from the secret
+  # Secret with keys: SESSION_SECRET, DATABASE_URL, and optionally
+  # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SMTP_URL, APPLE_CLIENT_ID,
+  # APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY, and (required)
+  # RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
+  # GOOGLE_MAPS_API_KEY (server key: Places API (New) + Geocoding API, IP-restricted).
+  existingSecret: lost-found-api
+  serviceAccount:
+    create: true
+    name: lost-found-api
+    # IRSA role with s3:GetObject/PutObject/DeleteObject on the media prefix
+    # and cloudfront:CreateInvalidation on the distribution.
+    roleArn: ""
+
+web:
+  image:
+    repository: lost-found-web
+    tag: ""
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits: { memory: 512Mi }
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 70 }
+
+migrations:
+  enabled: true          # pre-install/pre-upgrade hook Job
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+
+ingress:
+  enabled: true
+  className: alb
+  host: lostfound.example.com
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...
+    # alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:...
+
+networkPolicy:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+monitoring:
+  serviceMonitor:
+    enabled: false     # requires prometheus-operator CRDs
+  prometheusRule:
+    enabled: false

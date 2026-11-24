@@ -1,0 +1,18 @@
+{{- if .Values.networkPolicy.enabled }}
+# API accepts traffic only from the web pods and the ALB/ingress (pod IPs in
+# the VPC), on its HTTP port. Egress is left open for RDS, S3, SMTP and OAuth.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lost-found-api
+  labels: {{- include "lf.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - { port: 5000, protocol: TCP }
+{{- end }}

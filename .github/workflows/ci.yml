@@ -1,0 +1,228 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks, full history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+      - name: Scan history and working tree (values redacted)
+        run: |
+          gitleaks git --redact --no-banner .
+          gitleaks dir --redact --no-banner .
+
+  backend:
+    name: API lint + integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+        ports: ["5544:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: mkdir -p coverage && node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include='src/**' --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info "test/**/*.test.js"
+        env:
+          TEST_DATABASE_URL: postgres://postgres:test@localhost:5544/postgres
+      - run: npm audit --omit=dev --audit-level=high
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+
+  frontend:
+    name: Web lint + typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx eslint .
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Browser bundle contains no server secrets
+        run: npm run check:bundle
+      - run: npm audit --omit=dev --audit-level=high
+
+  e2e:
+    name: Browser tests (Playwright, real PostgreSQL)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Test-only environment
+        run: |
+          echo "SESSION_SECRET=$(openssl rand -hex 32)" >> .env
+          echo "DB_PASSWORD=$(openssl rand -hex 16)" >> .env
+      - name: Start isolated stack
+        run: docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend
+        env:
+          CI: "true"
+      - if: failure()
+        run: docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color > compose-logs.txt
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            compose-logs.txt
+      - if: always()
+        run: docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml down -v
+
+  security:
+    name: Image + dependency + IaC scanning (Trivy)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          load: true
+          tags: lost-found-api:ci
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          load: true
+          tags: lost-found-web:ci
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: lost-found-api:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan web image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: lost-found-web:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan Helm chart and Dockerfiles for misconfiguration
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  sonarqube:
+    name: SonarQube analysis
+    needs: [backend]
+    runs-on: ubuntu-latest
+    # Runs when the repository has SONAR_TOKEN and SONAR_HOST_URL configured.
+    if: ${{ vars.SONAR_HOST_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+      - uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
+  publish:
+    name: Publish images to ECR
+    needs: [e2e, security]
+    # Release jobs only: main branch or version tags, gated by the
+    # "release" environment (configure required reviewers in GitHub).
+    # Skipped until the AWS variables are configured for this repository.
+    if: github.event_name == 'push' && vars.AWS_ECR_PUSH_ROLE_ARN != '' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - name: Image tags
+        id: tags
+        run: |
+          echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"; fi
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          provenance: true
+          sbom: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_API_REPOSITORY }}:${{ steps.tags.outputs.sha }}
+            ${{ steps.tags.outputs.version && format('{0}/{1}:{2}', steps.ecr.outputs.registry, vars.ECR_API_REPOSITORY, steps.tags.outputs.version) || '' }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: true
+          provenance: true
+          sbom: true
+          build-args: |
+            API_INTERNAL_URL=http://lost-found-api:5000
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_WEB_REPOSITORY }}:${{ steps.tags.outputs.sha }}
+            ${{ steps.tags.outputs.version && format('{0}/{1}:{2}', steps.ecr.outputs.registry, vars.ECR_WEB_REPOSITORY, steps.tags.outputs.version) || '' }}

@@ -1,0 +1,124 @@
+# Local development stack.
+#   docker compose up -d --build
+# App: http://localhost:${APP_HOST_PORT:-3000} (Caddy -> web + /api, like the
+# production ingress)   Mail inbox: http://localhost:8025
+# Host ports are configurable, e.g. API_HOST_PORT=5001 if macOS AirPlay holds 5000.
+
+x-api-env: &api-env
+  NODE_ENV: ${NODE_ENV:-production}
+  APP_URL: ${APP_URL:-http://localhost:3000}
+  # Extra origins allowed to submit forms (e.g. a public tunnel URL plus localhost).
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_USER: postgres
+  DB_PASSWORD: ${DB_PASSWORD:-admin}
+  DB_NAME: lost_found_db
+  SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env (openssl rand -hex 32)}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+  APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+  APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+  APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+  APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
+  # Email: Resend when RESEND_API_KEY is set, otherwise SMTP (Mailpit locally).
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-Lost & Found <no-reply@lostfound.local>}
+  SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
+  STORAGE_DRIVER: local
+  STORAGE_LOCAL_DIR: /app/storage
+  LEGACY_UPLOADS_DIR: /app/uploads
+  ENABLE_TEST_AUTH: ${ENABLE_TEST_AUTH:-}
+  RATE_LIMIT_MULTIPLIER: ${RATE_LIMIT_MULTIPLIER:-1}
+  # Payments: local test-mode provider by default (no real money). Set
+  # PAYMENT_PROVIDER=razorpay with RAZORPAY_* test keys to use Razorpay test mode.
+  PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-test}
+  ALLOW_TEST_PAYMENTS: ${ALLOW_TEST_PAYMENTS:-true}
+  RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+  RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+  RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+  # Location suggestions: server-side Google Places (New) + Geocoding when
+  # GOOGLE_MAPS_API_KEY is set; PLACES_PROVIDER=fixture for offline demo data.
+  GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+  PLACES_PROVIDER: ${PLACES_PROVIDER:-}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      POSTGRES_DB: lost_found_db
+    ports:
+      - "${DB_HOST_PORT:-5434}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lost_found_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "${MAIL_UI_HOST_PORT:-8025}:8025"
+
+  migrate:
+    build: ./backend
+    command: ["node", "server.js", "migrate"]
+    environment: *api-env
+    volumes:
+      - storage:/app/storage
+      - uploads:/app/uploads:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build: ./backend
+    environment: *api-env
+    ports:
+      - "${API_HOST_PORT:-5000}:5000"
+    volumes:
+      - storage:/app/storage
+      - uploads:/app/uploads:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_INTERNAL_URL: http://backend:5000
+    environment:
+      API_INTERNAL_URL: http://backend:5000
+      APP_URL: ${APP_URL:-http://localhost:3000}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2.10-alpine
+    ports:
+      - "${APP_HOST_PORT:-3000}:80"
+    volumes:
+      - ./deploy/local/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:   # prototype uploads (read-only; converted by the migrate job)
+  storage:   # processed images

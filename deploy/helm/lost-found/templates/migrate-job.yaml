@@ -1,0 +1,43 @@
+{{- if .Values.migrations.enabled }}
+# Runs before every install/upgrade. Migrations are additive and guarded, and
+# an advisory lock prevents concurrent runs. A failed Job aborts the release,
+# leaving the previous Deployment untouched.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate-{{ .Release.Revision }}
+  labels: {{- include "lf.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels: {{- include "lf.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      {{- include "lf.podSecurity" . | nindent 6 }}
+      containers:
+        - name: migrate
+          image: {{ include "lf.apiImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "server.js", "migrate"]
+          env: {{- include "lf.apiEnv" . | nindent 12 }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.api.existingSecret }}
+          {{- include "lf.containerSecurity" . | nindent 10 }}
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: {} }
+{{- end }}

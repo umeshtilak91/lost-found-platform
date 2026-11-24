@@ -1,26 +1,156 @@
 @import "tailwindcss";
 
+/* Tailwind dark: variant follows the explicit theme, not the OS setting. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Design tokens. Components use these via Tailwind's theme variables, so the
+   palette and dark mode live in one place. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --border: #dfe3e8;
+  --text: #15191e;
+  --text-muted: #5b6573;
+  --primary: #1d4ed8;
+  --primary-hover: #1e40af;
+  --primary-contrast: #ffffff;
+  --lost: #b42318;
+  --lost-bg: #fef3f2;
+  --found: #067647;
+  --found-bg: #ecfdf3;
+  --warn: #b54708;
+  --warn-bg: #fffaeb;
+  --info-bg: #eff4ff;
+  --focus: #2563eb;
+  --chart-1: #1d4ed8;
+  --grid: #e8ebef;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --surface: #151b23;
+  --surface-muted: #1c232d;
+  --border: #2d3641;
+  --text: #e8edf2;
+  --text-muted: #9aa5b1;
+  --primary: #6b9bff;
+  --primary-hover: #8fb2ff;
+  --primary-contrast: #0b1220;
+  --lost: #ff8a80;
+  --lost-bg: #2a1614;
+  --found: #6ee7a8;
+  --found-bg: #102419;
+  --warn: #fdb022;
+  --warn-bg: #2a2010;
+  --info-bg: #142036;
+  --focus: #8fb2ff;
+  --chart-1: #5b8cf5;
+  --grid: #232b35;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-contrast: var(--primary-contrast);
+  --color-lost: var(--lost);
+  --color-lost-bg: var(--lost-bg);
+  --color-found: var(--found);
+  --color-found-bg: var(--found-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-info-bg: var(--info-bg);
+  --color-chart-1: var(--chart-1);
+  --color-grid: var(--grid);
+  --font-sans: var(--font-geist-sans), "Noto Sans Devanagari", system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---- Interaction motion (all disabled by the reduced-motion rule below) ---- */
+.toast-in { animation: toast-in 180ms ease-out; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.menu-in { animation: menu-in 180ms ease-out; transform-origin: top; }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+.fade-in { animation: fade-in 200ms ease-out; }
+@keyframes fade-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* Header links: underline grows from the centre on hover; stays for the current page. */
+.nav-link { position: relative; }
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  right: 50%;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  transition: left 180ms ease, right 180ms ease;
+}
+.nav-link:hover::after,
+.nav-link:focus-visible::after,
+.nav-link[aria-current="page"]::after { left: 12px; right: 12px; }
+
+/* Search: indeterminate progress bar and dimmed results while filters load. */
+.progress-indeterminate { animation: progress 1s ease-in-out infinite; }
+@keyframes progress { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+main:has([data-search-pending]) #search-results { opacity: 0.55; transition: opacity 150ms; pointer-events: none; }
+
+/* "Returned" celebration: a short burst of confetti dots. */
+.celebrate { position: relative; }
+.celebrate > i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confetti 900ms ease-out forwards;
+}
+@keyframes confetti {
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(220deg); }
+}
+
+/* Hero sign: a gentle swing from the nail. */
+.hero-sign-swing {
+  transform-box: view-box;
+  transform-origin: 160px 26px;
+  animation: hero-sign-swing 6s ease-in-out infinite;
+}
+@keyframes hero-sign-swing {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

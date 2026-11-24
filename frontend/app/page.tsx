@@ -1,251 +1,138 @@
-"use client";
+import Link from "next/link";
+import {
+  ArrowRight,
+  MessageSquareLock,
+  PackageSearch,
+  ShieldCheck,
+} from "lucide-react";
+import { ItemGrid } from "@/features/items/ItemCards";
+import { HeroSign } from "@/features/home/HeroSign";
+import { HomeSearch } from "@/features/search/HomeSearch";
+import { LinkButton } from "@/components/ui";
+import { serverApi } from "@/lib/server-api";
+import { getT } from "@/lib/i18n/server";
+import { formatNumber } from "@/lib/format";
+import type { SearchResult } from "@/lib/types";
 
-import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
-import Hero from "../components/Hero";
+export const dynamic = "force-dynamic";
 
-type Stats = {
-  total: number;
-  lost: number;
-  found: number;
-};
-
-export default function Home() {
-  const [stats, setStats] = useState<Stats>({
-    total: 0,
-    lost: 0,
-    found: 0,
-  });
-
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const response = await fetch("http://localhost:5000/api/stats");
-
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-
-        const data: Stats = await response.json();
-
-        setStats(data);
-      } catch (error) {
-        console.error("Failed to fetch statistics:", error);
-      }
-    }
-
-    fetchStats();
-  }, []);
+export default async function Home() {
+  const { t, locale } = await getT();
+  const [stats, lost, found] = await Promise.all([
+    serverApi<{ total: number; returned: number }>("/stats", {
+      forwardCookies: false,
+    }),
+    serverApi<SearchResult>("/items?type=lost&pageSize=3", {
+      forwardCookies: false,
+    }),
+    serverApi<SearchResult>("/items?type=found&pageSize=3", {
+      forwardCookies: false,
+    }),
+  ]);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "40px 20px 60px",
-        fontFamily: "Arial, sans-serif",
-        color: "white",
-        background:
-          "radial-gradient(circle at 10% 15%, rgba(37, 99, 235, 0.35), transparent 30%), radial-gradient(circle at 90% 85%, rgba(124, 58, 237, 0.25), transparent 30%), #020617",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-        }}
-      >
-        <Navbar />
-
-        <Hero />
-
-        {/* Statistics */}
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: "15px",
-            marginTop: "30px",
-            marginBottom: "30px",
-          }}
-        >
-          <StatCard
-            icon="📊"
-            value={stats.total}
-            label="Total Reports"
-          />
-
-          <StatCard
-            icon="🔍"
-            value={stats.lost}
-            label="Lost Items"
-          />
-
-          <StatCard
-            icon="🎒"
-            value={stats.found}
-            label="Found Items"
-          />
-        </section>
-
-        {/* Features */}
-        <section
-          style={{
-            padding: "25px",
-            borderRadius: "16px",
-            background: "rgba(15, 23, 42, 0.75)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <h2
-            style={{
-              marginTop: 0,
-              marginBottom: "20px",
-              fontSize: "24px",
-            }}
-          >
-            ✨ What you can do
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: "15px",
-            }}
-          >
-            <FeatureCard
-              icon="🏠"
-              title="Home"
-              description="Welcome to the Lost & Found platform."
-            />
-
-            <FeatureCard
-              icon="🔍"
-              title="Search Lost Items"
-              description="Look for items reported as lost."
-            />
-
-            <FeatureCard
-              icon="📦"
-              title="Lost Items"
-              description="View recently reported lost items."
-            />
-
-            <FeatureCard
-              icon="🎒"
-              title="Found Items"
-              description="See items that people have found."
-            />
-
-            <FeatureCard
-              icon="➕"
-              title="Report Item"
-              description="Report something lost or found."
-            />
+    <div className="flex flex-col gap-12">
+      <section className="grid items-center gap-8 rounded-2xl border border-border bg-surface px-6 py-10 sm:px-10 sm:py-14 md:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
+        <div className="min-w-0">
+          <h1 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
+            {t("home.title")}
+          </h1>
+          <p className="mt-3 max-w-2xl text-lg text-muted">
+            {t("app.tagline")}
+          </p>
+          <HomeSearch />
+          <div className="mt-4 flex flex-wrap gap-2">
+            <LinkButton href="/report?type=lost" variant="secondary">
+              {t("home.reportLost")}
+            </LinkButton>
+            <LinkButton href="/report?type=found" variant="secondary">
+              {t("home.reportFound")}
+            </LinkButton>
           </div>
-        </section>
-      </div>
-    </main>
-  );
-}
+          {stats.ok && (
+            <dl className="mt-8 flex flex-wrap gap-8">
+              <div>
+                <dt className="text-sm text-muted">{t("home.stats.total")}</dt>
+                <dd className="text-2xl font-bold">
+                  {formatNumber(stats.data.total, locale)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted">
+                  {t("home.stats.returned")}
+                </dt>
+                <dd className="text-2xl font-bold text-found">
+                  {formatNumber(stats.data.returned, locale)}
+                </dd>
+              </div>
+            </dl>
+          )}
+        </div>
+        <div className="mx-auto w-48 sm:w-60 md:order-none md:w-full">
+          <HeroSign lines={t("home.sign").split("|")} />
+        </div>
+      </section>
 
-function StatCard({
-  icon,
-  value,
-  label,
-}: {
-  icon: string;
-  value: number;
-  label: string;
-}) {
-  return (
-    <div
-      style={{
-        padding: "16px 20px",
-        borderRadius: "14px",
-        textAlign: "center",
-        background: "rgba(15, 23, 42, 0.8)",
-        border: "1px solid rgba(255,255,255,0.1)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "28px",
-          marginBottom: "8px",
-        }}
-      >
-        {icon}
-      </div>
+      {[
+        { key: "lost" as const, title: t("home.recentLost"), result: lost },
+        { key: "found" as const, title: t("home.recentFound"), result: found },
+      ].map(({ key, title, result }) =>
+        result.ok && result.data.items.length > 0 ? (
+          <section key={key} aria-labelledby={`recent-${key}`}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id={`recent-${key}`} className="text-xl font-semibold">
+                {title}
+              </h2>
+              <Link
+                href={`/items?type=${key}`}
+                className="group inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
+              >
+                {t("home.seeAll")} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+              </Link>
+            </div>
+            <ItemGrid
+              items={result.data.items}
+              t={t}
+              locale={locale}
+              headingLevel={3}
+            />
+          </section>
+        ) : null,
+      )}
 
-      <div
-        style={{
-          fontSize: "28px",
-          fontWeight: "700",
-          marginBottom: "5px",
-        }}
-      >
-        {value}
-      </div>
-
-      <div
-        style={{
-          color: "#94a3b8",
-          fontSize: "14px",
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "12px",
-        background: "rgba(30, 41, 59, 0.8)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "28px",
-          marginBottom: "10px",
-        }}
-      >
-        {icon}
-      </div>
-
-      <h3
-        style={{
-          margin: "0 0 8px",
-          fontSize: "17px",
-        }}
-      >
-        {title}
-      </h3>
-
-      <p
-        style={{
-          margin: 0,
-          color: "#94a3b8",
-          fontSize: "14px",
-          lineHeight: "1.5",
-        }}
-      >
-        {description}
-      </p>
+      <section aria-labelledby="how">
+        <h2 id="how" className="mb-4 text-xl font-semibold">
+          {t("home.how.title")}
+        </h2>
+        <ol className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              icon: PackageSearch,
+              title: t("home.how.1.title"),
+              body: t("home.how.1.body"),
+            },
+            {
+              icon: ShieldCheck,
+              title: t("home.how.2.title"),
+              body: t("home.how.2.body"),
+            },
+            {
+              icon: MessageSquareLock,
+              title: t("home.how.3.title"),
+              body: t("home.how.3.body"),
+            },
+          ].map(({ icon: Icon, title, body }) => (
+            <li
+              key={title}
+              className="rounded-xl border border-border bg-surface p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/50"
+            >
+              <Icon className="size-6 text-primary" aria-hidden />
+              <h3 className="mt-3 font-semibold">{title}</h3>
+              <p className="mt-1 text-sm text-muted">{body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
     </div>
   );
 }

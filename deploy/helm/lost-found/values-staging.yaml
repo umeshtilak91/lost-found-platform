@@ -1,0 +1,14 @@
+appUrl: https://staging.lostfound.example.com
+ingress:
+  host: staging.lostfound.example.com
+api:
+  replicas: 1
+  autoscaling: { enabled: false }
+  env:
+    S3_BUCKET: lostfound-staging-media
+    LOG_LEVEL: debug
+web:
+  replicas: 1
+  autoscaling: { enabled: false }
+podDisruptionBudget:
+  enabled: false

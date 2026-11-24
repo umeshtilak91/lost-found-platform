@@ -1,0 +1,12 @@
+# Local stand-in for the production ingress/ALB: one origin, /api -> API,
+# everything else -> web. Caddy ignores X-Forwarded-For sent by clients and
+# sets it to the real peer address, so rate limits key on the true client IP.
+:80 {
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy backend:5000
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

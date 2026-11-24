@@ -1,0 +1,41 @@
+# Isolated end-to-end test stack (separate project => separate volumes):
+#   docker compose -p lftest -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+# Enables the test-only login fixture. Never use this file for deployments.
+services:
+  db:
+    ports: !override
+      - "${E2E_DB_PORT:-5545}:5432"
+  mailpit:
+    ports: !override
+      - "${E2E_MAIL_PORT:-8026}:8025"
+  migrate:
+    environment:
+      NODE_ENV: test
+      ENABLE_TEST_AUTH: "true"
+      APP_URL: http://localhost:3100
+  backend:
+    environment:
+      NODE_ENV: test
+      ENABLE_TEST_AUTH: "true"
+      # Automated tests read codes from the isolated Mailpit inbox; never Resend.
+      RESEND_API_KEY: ""
+      # Local test-mode payments unless the live Razorpay suite opts in
+      # (E2E_PAYMENT_PROVIDER=razorpay with playwright.razorpay.config.ts).
+      PAYMENT_PROVIDER: ${E2E_PAYMENT_PROVIDER:-test}
+      # Deterministic location fixtures; automated tests never call Google.
+      PLACES_PROVIDER: fixture
+      GOOGLE_MAPS_API_KEY: ""
+      EMAIL_FROM: "Lost & Found <test@lostfound.local>"
+      APP_URL: http://localhost:3100
+      # Pinned so a developer's ALLOWED_ORIGINS in .env (e.g. a tunnel) can't leak in.
+      ALLOWED_ORIGINS: http://localhost:3100
+      RATE_LIMIT_MULTIPLIER: "50"
+      LOG_LEVEL: warn
+    ports: !override
+      - "${E2E_API_PORT:-5100}:5000"
+  frontend:
+    environment:
+      APP_URL: http://localhost:3100
+  proxy:
+    ports: !override
+      - "3100:80"

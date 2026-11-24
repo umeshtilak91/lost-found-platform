@@ -1,0 +1,23 @@
+{{- if .Values.ingress.enabled }}
+# One public origin: /api -> API, everything else -> web.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lost-found
+  labels: {{- include "lf.labels" . | nindent 4 }}
+  annotations: {{- toYaml .Values.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: {{ .Values.api.serviceName }}, port: { name: http } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: lost-found-web, port: { name: http } }
+{{- end }}

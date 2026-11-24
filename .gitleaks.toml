@@ -1,0 +1,14 @@
+# gitleaks configuration: default rules plus a narrow allowlist for fixed,
+# non-secret test values. Never allowlist a real credential; rotate it instead.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secret test fixtures"
+paths = [
+  '''(^|/)package-lock\.json$''',
+]
+regexes = [
+  # Places session token UUID used only in backend/test/locations.test.js
+  '''3f0e4a52-6d1b-4c7e-9a43-2b8f1e7c9d10''',
+]

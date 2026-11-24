@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lost-found
+description: Lost & Found platform (Next.js web + Express API) for Amazon EKS
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
